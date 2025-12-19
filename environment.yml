@@ -1,0 +1,53 @@
+# Conda environment for mgrid
+#
+# Create: conda env create -f environment.yml
+# Activate: conda activate mgrid
+# Install mgrid: pip install -e .
+
+name: mgrid
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  # Python
+  - python>=3.10
+
+  # Core scientific
+  - numpy>=1.20
+  - scipy>=1.7
+  - xarray>=0.19
+  - netcdf4>=1.5
+
+  # Geospatial
+  - shapely>=1.8
+  - pyproj>=3.0
+  - geopandas>=0.10
+
+  # Visualization
+  - matplotlib>=3.4
+  - cartopy>=0.20
+  - basemap>=1.3
+
+  # Mesh generation (JIGSAW)
+  - jigsawpy>=0.3
+
+  # MPAS tools
+  - mpas_tools>=0.15
+
+  # Graph partitioning (METIS)
+  - metis>=5.1
+
+  # Development
+  - pytest>=7.0
+  - pytest-cov>=4.0
+  - black>=22.0
+  - isort>=5.10
+
+  # Documentation
+  - sphinx>=4.0
+  - sphinx_rtd_theme>=1.0
+  - numpydoc>=1.2
+
+  # Pip for m-grid installation
+  - pip

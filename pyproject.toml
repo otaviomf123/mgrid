@@ -1,0 +1,141 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mgrid"
+version = "0.1.0"
+description = "Variable-resolution mesh generation for MPAS-based atmospheric models (MPAS, MONAN)"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+authors = [
+    {name = "MONAN Development Team"},
+    {name = "Pedro S. Peixoto", email = "ppeixoto@usp.br"},
+]
+maintainers = [
+    {name = "MONAN Development Team"},
+]
+keywords = [
+    "mpas",
+    "monan",
+    "atmospheric-modeling",
+    "mesh-generation",
+    "voronoi",
+    "icosahedral",
+    "spherical-grid",
+    "weather",
+    "climate",
+    "variable-resolution",
+    "jigsaw",
+    "metis",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+
+dependencies = [
+    "numpy>=1.20.0",
+]
+
+[project.optional-dependencies]
+full = [
+    "shapely>=1.8.0",
+    "matplotlib>=3.4.0",
+    "xarray>=0.19.0",
+    "netCDF4>=1.5.0",
+    "scipy>=1.7.0",
+    "pyproj>=3.0.0",
+]
+geo = [
+    "shapely>=1.8.0",
+    "pyproj>=3.0.0",
+    "geopandas>=0.10.0",
+]
+viz = [
+    "matplotlib>=3.4.0",
+    "cartopy>=0.20.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "isort>=5.10.0",
+    "mypy>=0.950",
+    "flake8>=4.0.0",
+]
+docs = [
+    "sphinx>=4.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "numpydoc>=1.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/monan/mgrid"
+Documentation = "https://mgrid.readthedocs.io"
+Repository = "https://github.com/monan/mgrid.git"
+Issues = "https://github.com/monan/mgrid/issues"
+Changelog = "https://github.com/monan/mgrid/blob/main/CHANGELOG.md"
+
+[project.scripts]
+mgrid = "mgrid.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+mgrid = ["py.typed"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+    | \.mypy_cache
+    | \.venv
+    | build
+    | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = ["mgrid"]
+skip_gitignore = true
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["src/mgrid"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise ImportError",
+    "if TYPE_CHECKING:",
+]
