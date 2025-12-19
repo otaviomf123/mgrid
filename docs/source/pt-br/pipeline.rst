@@ -285,9 +285,9 @@ com várias resoluções (3km, 7km, 15km, 30km, 60km, 120km).
 Considerações para o MONAN
 --------------------------
 
-O MONAN (Modelo para Previsão do Tempo e Oceanos em Novas Arquiteturas)
-utiliza o mesmo formato de malha do MPAS. Os arquivos gerados pelo mgrid
-são diretamente compatíveis com o MONAN.
+O MONAN (Model for Ocean-laNd-Atmosphere PredictioN) utiliza o mesmo
+formato de malha do MPAS. Os arquivos gerados pelo mgrid são diretamente
+compatíveis com o MONAN.
 
 Para execução no MONAN:
 

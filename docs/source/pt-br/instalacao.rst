@@ -40,7 +40,7 @@ sejam instaladas corretamente.
    conda install -c conda-forge metis -y
 
    # Clonar e instalar mgrid
-   git clone https://github.com/monan/mgrid.git
+   git clone https://github.com/otaviomf123/mgrid.git
    cd mgrid
    pip install -e .
 

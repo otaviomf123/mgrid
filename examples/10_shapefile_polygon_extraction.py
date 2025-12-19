@@ -8,7 +8,7 @@ This example demonstrates how to:
 3. Extract polygon coordinates
 4. Simplify the polygon for computational efficiency
 5. Calculate bounds and centroid
-6. Export for use with m-grid
+6. Export for use with mgrid
 
 Author: MONAN Development Team
 """
@@ -265,7 +265,7 @@ def create_buffered_polygon(vertices, buffer_km):
 
 def export_to_python(vertices, variable_name="POLYGON"):
     """
-    Export vertices as Python code for use in m-grid.
+    Export vertices as Python code for use in mgrid.
 
     Parameters
     ----------
@@ -362,7 +362,7 @@ def main():
 
     # Export as Python code
     print("\n" + "-" * 40)
-    print("Python code for m-grid:")
+    print("Python code for mgrid:")
     print("-" * 40)
     code = export_to_python(vertices[:10], "GOIAS_POLYGON")  # First 10 for display
     print(code)
@@ -430,7 +430,7 @@ def main():
     max_extent_deg = max(lat_range, lon_range)
     radius_km = max_extent_deg * 111 / 2 * 1.2  # 20% margin
 
-    print(f"\nRecommended circle for m-grid:")
+    print(f"\nRecommended circle for mgrid:")
     print(f"  Center: ({metro_centroid[0]:.4f}, {metro_centroid[1]:.4f})")
     print(f"  Radius: {radius_km:.1f} km")
 
@@ -455,10 +455,10 @@ def main():
     # SUMMARY
     # ==========================================================================
     print("\n" + "=" * 70)
-    print("SUMMARY - Using Extracted Data with m-grid")
+    print("SUMMARY - Using Extracted Data with mgrid")
     print("=" * 70)
     print("""
-To use the extracted polygon with m-grid:
+To use the extracted polygon with mgrid:
 
 1. For PolygonRegion:
 

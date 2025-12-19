@@ -9,7 +9,7 @@ area grid given a region specification. This module provides utilities to:
 
 1. Generate points specification files (.pts) for different region types
 2. Execute the MPAS Limited-Area tool programmatically
-3. Integrate with m-grid configurations
+3. Integrate with mgrid configurations
 
 Reference: https://github.com/MiCurry/MPAS-Limited-Area
 """
@@ -138,16 +138,16 @@ def generate_pts_from_config(
     buffer_margin_deg: float = 1.0,
 ) -> Path:
     """
-    Generate a .pts file from an m-grid configuration.
+    Generate a .pts file from an mgrid configuration.
 
     This function extracts the outermost region (typically the regional buffer)
-    from an m-grid configuration and generates a .pts file suitable for
+    from an mgrid configuration and generates a .pts file suitable for
     MPAS Limited-Area.
 
     Parameters
     ----------
     config : dict
-        m-grid configuration dictionary.
+        mgrid configuration dictionary.
     output_path : str or Path
         Path where the .pts file will be saved.
     region_name : str, optional

@@ -1,1 +1,1 @@
-# Test package for m-grid
+# Test package for mgrid

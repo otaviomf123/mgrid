@@ -39,7 +39,7 @@ all dependencies, including compiled libraries, are properly installed.
    conda install -c conda-forge metis -y
 
    # Clone and install mgrid
-   git clone https://github.com/monan/mgrid.git
+   git clone https://github.com/otaviomf123/mgrid.git
    cd mgrid
    pip install -e .
 

@@ -372,7 +372,7 @@ def save_cell_width(
         },
         attrs={
             'title': 'MPAS/MONAN mesh cell width function',
-            'created_by': 'm-grid'
+            'created_by': 'mgrid'
         }
     )
 

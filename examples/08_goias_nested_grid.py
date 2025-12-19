@@ -50,7 +50,7 @@ import json
 import numpy as np
 from pathlib import Path
 
-# Import m-grid components
+# Import mgrid components
 from mgrid import (
     generate_mesh,
     save_grid,

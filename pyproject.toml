@@ -82,11 +82,11 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/monan/mgrid"
+Homepage = "https://github.com/otaviomf123/mgrid"
 Documentation = "https://mgrid.readthedocs.io"
-Repository = "https://github.com/monan/mgrid.git"
-Issues = "https://github.com/monan/mgrid/issues"
-Changelog = "https://github.com/monan/mgrid/blob/main/CHANGELOG.md"
+Repository = "https://github.com/otaviomf123/mgrid.git"
+Issues = "https://github.com/otaviomf123/mgrid/issues"
+Changelog = "https://github.com/otaviomf123/mgrid/blob/main/CHANGELOG.md"
 
 [project.scripts]
 mgrid = "mgrid.cli:main"

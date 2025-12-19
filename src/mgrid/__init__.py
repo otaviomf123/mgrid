@@ -3,8 +3,8 @@ mgrid: Variable-resolution mesh generation for MPAS-based atmospheric models.
 
 This package provides tools for creating variable-resolution spherical
 meshes for MPAS-based atmospheric models, including MPAS (Model for
-Prediction Across Scales) and MONAN (Modelo para Previsão do Tempo
-e Oceanos em Novas Arquiteturas).
+Prediction Across Scales) and MONAN (Model for Ocean-laNd-Atmosphere
+PredictioN).
 
 Quick Start
 -----------

@@ -1,16 +1,16 @@
 """
-Command-line interface for m-grid.
+Command-line interface for mgrid.
 
 Usage examples:
 
     # Generate uniform 30 km grid
-    m-grid uniform --resolution 30 --output my_grid
+    mgrid uniform --resolution 30 --output my_grid
 
     # Generate icosahedral grid
-    m-grid icosahedral --level 6 --output icos_grid
+    mgrid icosahedral --level 6 --output icos_grid
 
     # Generate from configuration file
-    m-grid config --file my_config.json --output var_res_grid
+    mgrid config --file my_config.json --output var_res_grid
 """
 
 import argparse
@@ -21,14 +21,14 @@ from pathlib import Path
 def main():
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(
-        prog='m-grid',
+        prog='mgrid',
         description='MPAS/MONAN mesh generation tool',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  m-grid uniform -r 30 -o global_30km
-  m-grid icosahedral -l 6 -o icos_level6
-  m-grid config -f config.json -o my_grid --plot
+  mgrid uniform -r 30 -o global_30km
+  mgrid icosahedral -l 6 -o icos_level6
+  mgrid config -f config.json -o my_grid --plot
         """
     )
 
@@ -157,7 +157,7 @@ def _cmd_uniform(args):
     from .api import generate_mesh, save_grid
 
     print(f"\n{'='*60}")
-    print("m-grid: Uniform Resolution Grid")
+    print("mgrid: Uniform Resolution Grid")
     print(f"{'='*60}")
     print(f"Resolution: {args.resolution} km")
     print(f"Output: {args.output}")
@@ -182,7 +182,7 @@ def _cmd_icosahedral(args):
     from .api import generate_icosahedral, save_grid
 
     print(f"\n{'='*60}")
-    print("m-grid: Icosahedral Grid")
+    print("mgrid: Icosahedral Grid")
     print(f"{'='*60}")
     print(f"Level: {args.level}")
     print(f"Output: {args.output}")
@@ -206,7 +206,7 @@ def _cmd_config(args):
     from .api import generate_mesh, save_grid
 
     print(f"\n{'='*60}")
-    print("m-grid: Configuration-based Grid")
+    print("mgrid: Configuration-based Grid")
     print(f"{'='*60}")
     print(f"Config: {args.file}")
     print(f"Output: {args.output}")

@@ -49,5 +49,5 @@ dependencies:
   - sphinx_rtd_theme>=1.0
   - numpydoc>=1.2
 
-  # Pip for m-grid installation
+  # Pip for mgrid installation
   - pip

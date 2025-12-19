@@ -10,7 +10,7 @@ Variable-resolution mesh generation for MPAS-based atmospheric models.
 
 **Documentation:** [https://mgrid.readthedocs.io](https://mgrid.readthedocs.io)
 
-**Source Code:** [https://github.com/monan/mgrid](https://github.com/monan/mgrid)
+**Source Code:** [https://github.com/otaviomf123/mgrid](https://github.com/otaviomf123/mgrid)
 
 ---
 
@@ -20,7 +20,7 @@ Variable-resolution mesh generation for MPAS-based atmospheric models.
 
 Compatible with:
 - **MPAS** (Model for Prediction Across Scales)
-- **MONAN** (Modelo para Previsão do Tempo e Oceanos em Novas Arquiteturas)
+- **MONAN** (Model for Ocean-laNd-Atmosphere PredictioN)
 - Any model using MPAS mesh format
 
 ![Variable Resolution Grid Example](docs/source/_static/example_variable_resolution.png)
@@ -36,8 +36,8 @@ Shapefile → Configuration → Cell Width → JIGSAW Mesh → MPAS Format → R
 | Step | Description | Tool |
 |------|-------------|------|
 | 1 | Extract polygon from shapefile | GeoPandas |
-| 2 | Define resolution zones | m-grid |
-| 3 | Compute cell width function | m-grid |
+| 2 | Define resolution zones | mgrid |
+| 3 | Compute cell width function | mgrid |
 | 4 | Generate spherical mesh | JIGSAW |
 | 5 | Convert to MPAS format | mpas_tools |
 | 6 | Cut regional domain | MPAS-Limited-Area |
@@ -306,6 +306,6 @@ To download shapefiles for your region:
   title = {mgrid: Variable-resolution mesh generation for MPAS-based atmospheric models},
   author = {MONAN Development Team},
   year = {2024},
-  url = {https://github.com/monan/mgrid}
+  url = {https://github.com/otaviomf123/mgrid}
 }
 ```
