@@ -9,11 +9,11 @@ Visão Geral do Pipeline
 
 .. code-block:: text
 
-   Shapefile → Configuração → Cell Width → Malha JIGSAW → Formato MPAS → Corte Regional → Partição MPI
+   Shapefile → Config → Cell Width → JIGSAW → Grade MPAS → Arquivo Static → Corte Regional → Partição
 
 .. list-table::
    :header-rows: 1
-   :widths: 10 30 20
+   :widths: 10 35 20
 
    * - Etapa
      - Descrição
@@ -34,11 +34,31 @@ Visão Geral do Pipeline
      - Converter para formato MPAS
      - mpas_tools
    * - 6
-     - Cortar domínio regional
-     - MPAS-Limited-Area
+     - **Gerar arquivo static (dados geográficos)**
+     - **MPAS init_atmosphere**
    * - 7
+     - Cortar domínio regional
+     - mgrid (MPAS-Limited-Area)
+   * - 8
      - Particionar para MPI
      - METIS (gpmetis)
+
+.. important::
+
+   A **Etapa 6 (Geração do Arquivo Static)** é realizada **fora do mgrid** usando o ``init_atmosphere`` do MPAS.
+   O arquivo static combina a grade com dados geográficos (terreno, uso do solo, tipo de solo, etc.)
+   necessários para simulação. Veja a `Documentação do MPAS <https://www2.mmm.ucar.edu/projects/mpas/site/documentation/mpas_overview.html>`_
+   para instruções detalhadas.
+
+Grades Pré-geradas (Alternativa)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Para testes rápidos ou quando resolução personalizada não é necessária, você pode pular as etapas 1-5
+e baixar grades MPAS pré-geradas em:
+
+`MPAS Atmosphere Meshes <https://mpas-dev.github.io/atmosphere/atmosphere_meshes.html>`_
+
+Resoluções disponíveis: 3km, 7.5km, 15km, 30km, 60km, 120km, 240km, 480km.
 
 Guia Passo a Passo
 ------------------
@@ -155,10 +175,37 @@ Isso acontece automaticamente quando ``generate_jigsaw=True``:
            output_file='saida/minha_malha.grid.nc'
        )
 
-Etapa 6: Cortar Domínio Regional
+Etapa 6: Gerar Arquivo Static (Externo - MPAS init)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. important::
+
+   Esta etapa é realizada **fora do mgrid** usando o ``init_atmosphere`` do MPAS.
+
+O arquivo static combina a grade com dados geográficos (terreno, uso do solo,
+tipo de solo, vegetação, etc.) necessários para simulação atmosférica.
+
+**Pré-requisitos:**
+
+- Executável ``init_atmosphere`` do MPAS (compilado do código fonte)
+- Arquivos de dados geográficos (GEOGRID, terreno, uso do solo)
+
+**Configuração:**
+
+Configure ``namelist.init_atmosphere`` com:
+
+- ``config_static_interp = true``
+- Caminho para o arquivo de grade gerado na Etapa 5
+
+Para instruções detalhadas, veja a documentação oficial:
+
+- `MPAS Overview <https://www2.mmm.ucar.edu/projects/mpas/site/documentation/mpas_overview.html>`_
+- `MPAS-Atmosphere Tutorial <https://www2.mmm.ucar.edu/projects/mpas/tutorial/>`_
+
+Etapa 7: Cortar Domínio Regional
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Gerar arquivo de especificação e cortar a malha regional:
+Gerar arquivo de especificação e cortar a malha regional do arquivo static:
 
 .. code-block:: python
 
@@ -173,16 +220,16 @@ Gerar arquivo de especificação e cortar a malha regional:
        polygon=vertices
    )
 
-   # Cortar malha regional da malha global
+   # Cortar malha regional do arquivo static
    malha_regional, arquivo_grafo = create_regional_mesh_python(
        pts_file=pts_file,
-       global_grid_file='x1.40962.grid.nc'
+       global_grid_file='static.nc'  # Usar arquivo static gerado na Etapa 6
    )
 
    print(f"Malha regional: {malha_regional}")
    print(f"Arquivo de grafo: {arquivo_grafo}")
 
-Etapa 7: Particionar para MPI
+Etapa 8: Particionar para MPI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Particionar a malha para execução paralela:
@@ -205,7 +252,7 @@ Particionar a malha para execução paralela:
 Função de Pipeline Completo
 ---------------------------
 
-Usar ``run_full_pipeline`` para etapas 6-7:
+Usar ``run_full_pipeline`` para etapas 7-8 (após gerar arquivo static):
 
 .. code-block:: python
 
@@ -213,12 +260,12 @@ Usar ``run_full_pipeline`` para etapas 6-7:
 
    resultados = run_full_pipeline(
        pts_file='saida/minha_regiao.pts',
-       global_grid_file='x1.40962.grid.nc',
-       num_partitions=64
+       global_grid_file='static.nc',  # Usar arquivo static da Etapa 6
+       num_partitions=[32, 64, 128]   # Múltiplas partições suportadas
    )
 
    print(f"Malha regional: {resultados['regional_grid']}")
-   print(f"Arquivo de partição: {resultados['partition_file']}")
+   print(f"Arquivos de partição: {resultados['partition_files']}")
 
 Exemplo via Linha de Comando
 ----------------------------
@@ -227,16 +274,16 @@ O exemplo ``09_goias_shapefile_grid.py`` demonstra o pipeline completo:
 
 .. code-block:: bash
 
-   # Execução rápida: configuração + cell width + gráficos
+   # Execução rápida: configuração + cell width + gráficos apenas
    python examples/09_goias_shapefile_grid.py
 
    # Pipeline completo com geração de malha JIGSAW
    python examples/09_goias_shapefile_grid.py --jigsaw
 
-   # Pipeline completo com malha global existente
+   # Pipeline completo com arquivo static existente + múltiplas partições
    python examples/09_goias_shapefile_grid.py \
-       --global-grid /caminho/para/x1.40962.grid.nc \
-       --nprocs 64
+       --global-grid static.nc \
+       --nprocs 32 64 128
 
 Arquivos de Saída
 -----------------
@@ -250,10 +297,15 @@ O pipeline completo gera:
    ├── minha_malha-HFUN.msh                 # Cell width JIGSAW
    ├── minha_malha-MESH.msh                 # Malha JIGSAW
    ├── minha_malha.grid.nc                  # Malha MPAS global
+   │
+   │   [Externo: Gerar static.nc usando MPAS init_atmosphere]
+   │
    ├── minha_regiao.pts                     # Especificação da região
    ├── minha_regiao.grid.nc                 # Malha MPAS regional
    ├── minha_regiao.graph.info              # Arquivo de grafo
-   └── minha_regiao.graph.info.part.64      # Partição MPI
+   ├── minha_regiao.graph.info.part.32      # Partição MPI (32 procs)
+   ├── minha_regiao.graph.info.part.64      # Partição MPI (64 procs)
+   └── minha_regiao.graph.info.part.128     # Partição MPI (128 procs)
 
 Executando MPAS/MONAN
 ---------------------
@@ -276,11 +328,14 @@ Considerações de Desempenho
 ---------------------------
 
 - **Geração de malha JIGSAW**: Pode levar horas para malhas globais de alta resolução
+- **Geração do arquivo static**: Depende da resolução dos dados geográficos
 - **Corte regional**: Muito mais rápido, tipicamente segundos a minutos
 - **Use malhas globais existentes**: Baixe malhas pré-geradas quando possível
 
-Malhas globais pré-geradas estão disponíveis nos servidores de download do MPAS
-com várias resoluções (3km, 7km, 15km, 30km, 60km, 120km).
+Grades pré-geradas estão disponíveis em:
+
+- `MPAS Atmosphere Meshes <https://mpas-dev.github.io/atmosphere/atmosphere_meshes.html>`_
+- Resoluções: 3km, 7.5km, 15km, 30km, 60km, 120km, 240km, 480km
 
 Considerações para o MONAN
 --------------------------

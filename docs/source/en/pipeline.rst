@@ -9,11 +9,11 @@ Pipeline Overview
 
 .. code-block:: text
 
-   Shapefile → Configuration → Cell Width → JIGSAW Mesh → MPAS Format → Regional Cut → MPI Partition
+   Shapefile → Config → Cell Width → JIGSAW → MPAS grid → Static File → Regional Cut → Partition
 
 .. list-table::
    :header-rows: 1
-   :widths: 10 30 20
+   :widths: 10 35 20
 
    * - Step
      - Description
@@ -34,11 +34,31 @@ Pipeline Overview
      - Convert to MPAS format
      - mpas_tools
    * - 6
-     - Cut regional domain
-     - MPAS-Limited-Area
+     - **Generate static file (geographic data)**
+     - **MPAS init_atmosphere**
    * - 7
+     - Cut regional domain
+     - mgrid (MPAS-Limited-Area)
+   * - 8
      - Partition for MPI
      - METIS (gpmetis)
+
+.. important::
+
+   **Step 6 (Static File Generation)** is performed **outside mgrid** using MPAS ``init_atmosphere``.
+   The static file combines the grid with geographic data (terrain, land use, soil type, etc.)
+   required for simulation. See `MPAS Documentation <https://www2.mmm.ucar.edu/projects/mpas/site/documentation/mpas_overview.html>`_
+   for detailed instructions.
+
+Pre-made Grids (Alternative)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For quick testing or when custom resolution is not needed, you can skip steps 1-5
+and download pre-generated MPAS grids from:
+
+`MPAS Atmosphere Meshes <https://mpas-dev.github.io/atmosphere/atmosphere_meshes.html>`_
+
+Available resolutions: 3km, 7.5km, 15km, 30km, 60km, 120km, 240km, 480km.
 
 Step-by-Step Guide
 ------------------
@@ -155,10 +175,37 @@ This happens automatically when ``generate_jigsaw=True``:
            output_file='output/my_grid.nc'
        )
 
-Step 6: Cut Regional Domain
+Step 6: Generate Static File (External - MPAS init)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. important::
+
+   This step is performed **outside mgrid** using MPAS ``init_atmosphere``.
+
+The static file combines the grid with geographic data (terrain, land use,
+soil type, vegetation, etc.) required for atmospheric simulation.
+
+**Prerequisites:**
+
+- MPAS ``init_atmosphere`` executable (compiled from MPAS source)
+- Geographic data files (GEOGRID, terrain, land use datasets)
+
+**Configuration:**
+
+Configure ``namelist.init_atmosphere`` with:
+
+- ``config_static_interp = true``
+- Path to the grid file generated in Step 5
+
+For detailed instructions, see the official documentation:
+
+- `MPAS Overview <https://www2.mmm.ucar.edu/projects/mpas/site/documentation/mpas_overview.html>`_
+- `MPAS-Atmosphere Tutorial <https://www2.mmm.ucar.edu/projects/mpas/tutorial/>`_
+
+Step 7: Cut Regional Domain
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Generate a specification file and cut the regional mesh:
+Generate a specification file and cut the regional mesh from the static file:
 
 .. code-block:: python
 
@@ -173,16 +220,16 @@ Generate a specification file and cut the regional mesh:
        polygon=vertices
    )
 
-   # Cut regional mesh from global grid
+   # Cut regional mesh from static file
    regional_grid, graph_file = create_regional_mesh_python(
        pts_file=pts_file,
-       global_grid_file='x1.40962.grid.nc'
+       global_grid_file='static.nc'  # Use the static file generated in Step 6
    )
 
    print(f"Regional grid: {regional_grid}")
    print(f"Graph file: {graph_file}")
 
-Step 7: Partition for MPI
+Step 8: Partition for MPI
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Partition the mesh for parallel execution:
@@ -205,7 +252,7 @@ Partition the mesh for parallel execution:
 Complete Pipeline Function
 --------------------------
 
-Use ``run_full_pipeline`` for steps 6-7:
+Use ``run_full_pipeline`` for steps 7-8 (after generating static file):
 
 .. code-block:: python
 
@@ -213,12 +260,12 @@ Use ``run_full_pipeline`` for steps 6-7:
 
    results = run_full_pipeline(
        pts_file='output/my_region.pts',
-       global_grid_file='x1.40962.grid.nc',
-       num_partitions=64
+       global_grid_file='static.nc',  # Use static file from Step 6
+       num_partitions=[32, 64, 128]   # Multiple partitions supported
    )
 
    print(f"Regional grid: {results['regional_grid']}")
-   print(f"Partition file: {results['partition_file']}")
+   print(f"Partition files: {results['partition_files']}")
 
 Command-Line Example
 --------------------
@@ -227,16 +274,16 @@ The ``09_goias_shapefile_grid.py`` example demonstrates the complete pipeline:
 
 .. code-block:: bash
 
-   # Quick run: configuration + cell width + plots
+   # Quick run: configuration + cell width + plots only
    python examples/09_goias_shapefile_grid.py
 
    # Full pipeline with JIGSAW mesh generation
    python examples/09_goias_shapefile_grid.py --jigsaw
 
-   # Complete pipeline with existing global grid
+   # Complete pipeline with existing static file + multiple partitions
    python examples/09_goias_shapefile_grid.py \
-       --global-grid /path/to/x1.40962.grid.nc \
-       --nprocs 64
+       --global-grid static.nc \
+       --nprocs 32 64 128
 
 Output Files
 ------------
@@ -250,10 +297,15 @@ The complete pipeline generates:
    ├── my_mesh-HFUN.msh                  # JIGSAW cell width
    ├── my_mesh-MESH.msh                  # JIGSAW mesh
    ├── my_grid.nc                        # Global MPAS grid
+   │
+   │   [External: Generate static.nc using MPAS init_atmosphere]
+   │
    ├── my_region.pts                     # Region specification
    ├── my_region.grid.nc                 # Regional MPAS grid
    ├── my_region.graph.info              # Graph file
-   └── my_region.graph.info.part.64      # MPI partition
+   ├── my_region.graph.info.part.32      # MPI partition (32 procs)
+   ├── my_region.graph.info.part.64      # MPI partition (64 procs)
+   └── my_region.graph.info.part.128     # MPI partition (128 procs)
 
 Running MPAS/MONAN
 ------------------
@@ -276,8 +328,11 @@ Performance Considerations
 --------------------------
 
 - **JIGSAW mesh generation**: Can take hours for high-resolution global meshes
+- **Static file generation**: Depends on geographic data resolution
 - **Regional cut**: Much faster, typically seconds to minutes
 - **Use existing global grids**: Download pre-generated grids when possible
 
-Pre-generated global grids are available from MPAS download servers with
-various resolutions (3km, 7km, 15km, 30km, 60km, 120km).
+Pre-generated global grids are available from:
+
+- `MPAS Atmosphere Meshes <https://mpas-dev.github.io/atmosphere/atmosphere_meshes.html>`_
+- Resolutions: 3km, 7.5km, 15km, 30km, 60km, 120km, 240km, 480km

@@ -1,262 +1,267 @@
 Guia Rápido
 ===========
 
-Este guia mostra como gerar malhas de resolução variável com o mgrid.
+Este guia mostra como gerar malhas de resolução variável com o mgrid
+usando um único arquivo de configuração unificado.
 
-Uso Básico
+Instalação
 ----------
 
-Gerar uma malha de resolução uniforme:
+Instale o mgrid via pip:
 
-.. code-block:: python
+.. code-block:: bash
 
-   from mgrid import generate_mesh, save_grid
+   pip install mgrid
 
-   # Gerar malha global de 30 km
-   grid = generate_mesh(resolution=30)
+   # Ou com todas as dependências
+   pip install mgrid[full]
 
-   # Salvar no formato MPAS
-   save_grid(grid, 'global_30km.nc')
+Após a instalação, o comando ``mgrid`` fica disponível no terminal.
 
-Resolução Variável com Região Circular
---------------------------------------
-
-Criar uma região de alta resolução dentro de uma malha global:
-
-.. code-block:: python
-
-   from mgrid import generate_mesh, save_grid, CircularRegion
-
-   # Definir região de refinamento
-   regiao = CircularRegion(
-       name='Amazonia',
-       resolution=5.0,          # 5 km dentro da região
-       transition_width=50.0,   # 50 km de transição suave
-       center=(-3.0, -60.0),    # (lat, lon) ponto central
-       radius=500.0             # 500 km de raio
-   )
-
-   # Gerar com 100 km de resolução de fundo
-   grid = generate_mesh(
-       regions=[regiao],
-       background_resolution=100.0
-   )
-
-   save_grid(grid, 'amazonia_5km.nc')
-
-Resolução Variável com Região Poligonal
----------------------------------------
-
-Usar uma fronteira poligonal para a região de refinamento. Os shapefiles podem
-ser obtidos do `DIVA-GIS <https://diva-gis.org/gdata>`_, que fornece dados de
-fronteiras administrativas gratuitos para todos os países:
-
-- **Nível 0** (BRA_adm0.shp): Fronteiras nacionais
-- **Nível 1** (BRA_adm1.shp): Fronteiras estaduais/regionais
-- **Nível 2** (BRA_adm2.shp): Fronteiras municipais
-
-.. code-block:: python
-
-   from mgrid import generate_mesh, save_grid, PolygonRegion
-
-   # Definir fronteira estadual (exemplo: Goiás)
-   # Shapefile: https://diva-gis.org/gdata
-   regiao = PolygonRegion(
-       name='Goias',
-       resolution=10.0,         # 10 km dentro
-       transition_width=30.0,   # 30 km de transição
-       vertices=[
-           (-12.4, -50.2),      # (lat, lon)
-           (-19.5, -50.8),
-           (-18.7, -52.4),
-           (-16.5, -53.2),
-           (-14.0, -50.8),
-       ]
-   )
-
-   grid = generate_mesh(regions=[regiao], background_resolution=100.0)
-   save_grid(grid, 'goias_10km.nc')
-
-Múltiplas Regiões Aninhadas
+Fluxo de Trabalho Unificado
 ---------------------------
 
-Criar uma hierarquia de resoluções:
+O mgrid usa um único arquivo JSON de configuração que controla todo o pipeline:
 
-.. code-block:: python
+.. code-block:: text
 
-   from mgrid import generate_mesh, save_grid, CircularRegion, PolygonRegion
+   1. mgrid config.json                    → Gerar malha com JIGSAW
+   2. ./init_atmosphere namelist...        → Gerar arquivo static (externo)
+   3. mgrid config.json --static-file ...  → Cortar malha regional + particionar
 
-   # Região externa: nível estadual (15 km)
-   estado = PolygonRegion(
-       name='Estado',
-       resolution=15.0,
-       transition_width=30.0,
-       vertices=[
-           (-19.0, -53.0),
-           (-19.0, -44.0),
-           (-25.5, -44.0),
-           (-25.5, -53.0),
-       ]
-   )
-
-   # Região interna: área metropolitana (3 km)
-   metro = CircularRegion(
-       name='Metropolitana',
-       resolution=3.0,
-       transition_width=10.0,
-       center=(-23.55, -46.63),  # São Paulo
-       radius=80.0
-   )
-
-   # Gerar com 60 km de fundo
-   grid = generate_mesh(
-       regions=[estado, metro],
-       background_resolution=60.0
-   )
-
-   save_grid(grid, 'saopaulo_aninhado.nc')
-
-Usando Arquivos de Configuração
--------------------------------
-
-Criar um arquivo JSON de configuração:
-
-.. code-block:: json
-
-   {
-       "background_resolution": 60.0,
-       "grid_density": 0.05,
-       "regions": [
-           {
-               "name": "Estado",
-               "type": "polygon",
-               "polygon": [
-                   [-19.0, -53.0],
-                   [-19.0, -44.0],
-                   [-25.5, -44.0],
-                   [-25.5, -53.0]
-               ],
-               "resolution": 15.0,
-               "transition_start": 30.0
-           },
-           {
-               "name": "Metro",
-               "type": "circle",
-               "center": [-23.55, -46.63],
-               "radius": 80,
-               "resolution": 3.0,
-               "transition_start": 15.0
-           }
-       ]
-   }
-
-Carregar e usar:
-
-.. code-block:: python
-
-   from mgrid import generate_mesh, save_grid
-
-   grid = generate_mesh(config='minha_config.json')
-   save_grid(grid, 'minha_malha.nc')
-
-Pipeline Completo (Config para MPAS)
+Estrutura do Arquivo de Configuração
 ------------------------------------
 
-Exemplo mínimo: de arquivo JSON de configuração até malha MPAS particionada pronta para execução.
-
-**Passo 1: Criar arquivo de configuração** ``config.json``:
+Um arquivo de configuração completo contém:
 
 .. code-block:: json
 
    {
+       "name": "minha_regiao",
+       "description": "Descrição da malha regional",
        "background_resolution": 60.0,
+       "output_dir": "saida/minha_regiao",
+
        "regions": [
            {
-               "name": "AltaResolucao",
+               "name": "Area_AltaResolucao",
                "type": "circle",
                "center": [-23.55, -46.63],
                "radius": 200,
                "resolution": 15.0,
                "transition_start": 30.0
            }
-       ]
+       ],
+
+       "regional_cut": {
+           "type": "circle",
+           "inside_point": [-23.55, -46.63],
+           "radius": 300000
+       },
+
+       "partitions": [32, 64, 128]
    }
 
-**Passo 2: Executar pipeline completo**:
+Exemplo Rápido
+--------------
 
-.. code-block:: python
+**Passo 1: Criar arquivo de configuração** ``config.json``:
 
-   from mgrid import (
-       generate_mesh,
-       generate_pts_file,
-       create_regional_mesh_python,
-       partition_mesh
-   )
+.. code-block:: json
 
-   # Gerar função de largura de célula + malha JIGSAW
-   grid = generate_mesh(
-       config='config.json',
-       output_path='saida/malha',
-       generate_jigsaw=True
-   )
+   {
+       "name": "saopaulo",
+       "background_resolution": 60.0,
+       "output_dir": "saida",
+       "regions": [
+           {
+               "name": "Metro",
+               "type": "circle",
+               "center": [-23.55, -46.63],
+               "radius": 200,
+               "resolution": 15.0,
+               "transition_start": 30.0
+           }
+       ],
+       "regional_cut": {
+           "type": "circle",
+           "inside_point": [-23.55, -46.63],
+           "radius": 300000
+       },
+       "partitions": [32, 64]
+   }
 
-   # Gerar especificação da região
-   pts = generate_pts_file(
-       output_path='saida/regiao.pts',
-       name='regiao',
-       region_type='circle',
-       inside_point=(-23.55, -46.63),
-       radius=250000  # metros
-   )
+**Passo 2: Gerar malha com JIGSAW**:
 
-   # Cortar malha regional da malha global
-   malha_regional, grafo = create_regional_mesh_python(
-       pts_file=pts,
-       global_grid_file='saida/malha.grid.nc'
-   )
+.. code-block:: bash
 
-   # Particionar para MPI (32, 64, 128 processos)
-   for nprocs in [32, 64, 128]:
-       partition_mesh(graph_file=grafo, num_partitions=nprocs)
+   mgrid config.json
 
-**Passo 3: Executar MPAS/MONAN**:
+Isso gera o arquivo de grade (``saida/saopaulo.grid.nc``).
+
+**Passo 3: Gerar arquivo static (externo - MPAS/MONAN)**:
+
+Gere o arquivo static usando ``init_atmosphere`` do MPAS. Configure
+``namelist.init_atmosphere`` com ``config_static_interp = true`` e o
+caminho para o arquivo de grade gerado no Passo 2.
+
+Veja a `Documentação do MPAS <https://www2.mmm.ucar.edu/projects/mpas/site/documentation/mpas_overview.html>`_
+para instruções detalhadas.
+
+**Passo 4: Cortar malha regional e particionar**:
+
+.. code-block:: bash
+
+   mgrid config.json --static-file static.nc
+
+Isso gera:
+- Malha regional: ``saida/saopaulo.static.nc``
+- Partições: ``saida/saopaulo.graph.info.part.32``, ``...part.64``
+
+**Passo 5: Executar MPAS/MONAN**:
 
 .. code-block:: bash
 
    mpirun -np 64 ./atmosphere_model
 
-Pipeline via Linha de Comando
------------------------------
+Exemplo Goiás (Completo)
+------------------------
 
-Ainda mais simples - use o script de exemplo diretamente:
+Um exemplo mais complexo com múltiplas zonas de resolução:
+
+.. code-block:: json
+
+   {
+       "name": "goias_regional",
+       "description": "Malha multi-resolução para o estado de Goiás",
+       "background_resolution": 30.0,
+       "output_dir": "saida/goias",
+
+       "regions": [
+           {
+               "name": "Buffer_Regional",
+               "type": "polygon",
+               "polygon": [
+                   [-10.9, -54.8], [-10.9, -44.4],
+                   [-21.0, -44.4], [-21.0, -54.8]
+               ],
+               "resolution": 5.0,
+               "transition_start": 30.0
+           },
+           {
+               "name": "Estado_Goias",
+               "type": "polygon",
+               "polygon": [
+                   [-12.4, -50.2], [-19.5, -50.8],
+                   [-18.7, -52.4], [-17.5, -53.2],
+                   [-15.1, -51.5], [-13.7, -50.9]
+               ],
+               "resolution": 3.0,
+               "transition_start": 5.0
+           },
+           {
+               "name": "Goiania_Metro",
+               "type": "circle",
+               "center": [-16.71, -49.24],
+               "radius": 105,
+               "resolution": 1.0,
+               "transition_start": 3.0
+           }
+       ],
+
+       "regional_cut": {
+           "type": "polygon",
+           "inside_point": [-16.0, -49.5],
+           "polygon": [
+               [-10.9, -54.8], [-10.9, -44.4],
+               [-21.0, -44.4], [-21.0, -54.8]
+           ]
+       },
+
+       "partitions": [32, 64, 128]
+   }
+
+Salve como ``goias.json`` e execute:
 
 .. code-block:: bash
 
-   # Teste rápido (sem geração de malha)
-   python examples/09_goias_shapefile_grid.py
+   # Gerar malha
+   mgrid goias.json
 
-   # Pipeline completo com malha JIGSAW
-   python examples/09_goias_shapefile_grid.py --jigsaw
+   # Após gerar arquivo static externamente:
+   mgrid goias.json --static-file static.nc
 
-   # Completo: malha global existente + partição para 32,64,128 processos
-   python examples/09_goias_shapefile_grid.py \
-       --global-grid x1.40962.grid.nc \
-       --nprocs 32 64 128
+Usando Grades MPAS Pré-geradas
+------------------------------
 
-Visualização
-------------
+Em vez de gerar uma nova malha com JIGSAW, você pode usar grades pré-geradas de:
 
-Plotar a distribuição de largura de célula:
+`MPAS Atmosphere Meshes <https://mpas-dev.github.io/atmosphere/atmosphere_meshes.html>`_
+
+.. code-block:: bash
+
+   # Baixar grade pré-gerada
+   wget https://mpas-dev.github.io/atmosphere/meshes/x1.40962.grid.nc
+
+   # Gerar arquivo static (externo - configurar namelist.init_atmosphere)
+
+   # Cortar e particionar
+   mgrid config.json --static-file static.nc
+
+Referência do CLI
+-----------------
+
+.. code-block:: bash
+
+   # Executar pipeline completo a partir do config
+   mgrid config.json
+
+   # Usar arquivo static existente (pular JIGSAW)
+   mgrid config.json --static-file static.nc
+
+   # Forçar JIGSAW mesmo se static_file estiver no config
+   mgrid config.json --jigsaw
+
+   # Pular geração de gráficos
+   mgrid config.json --no-plot
+
+   # Mostrar informações da grade
+   mgrid info grid.nc
+
+   # Mostrar ajuda
+   mgrid --help
+
+API Python
+----------
+
+Você também pode usar o mgrid como biblioteca Python:
 
 .. code-block:: python
 
-   from mgrid import generate_mesh, plot_cell_width
+   from mgrid import generate_mesh, save_grid
 
-   grid = generate_mesh(config='minha_config.json')
-   plot_cell_width(grid, output='largura_celula.png')
+   # Gerar a partir de arquivo de configuração
+   grid = generate_mesh(config='config.json', generate_jigsaw=True)
+
+   # Ou definir regiões programaticamente
+   from mgrid import CircularRegion
+
+   regiao = CircularRegion(
+       name='Metro',
+       resolution=15.0,
+       transition_width=15.0,
+       center=(-23.55, -46.63),
+       radius=200.0
+   )
+
+   grid = generate_mesh(
+       regions=[regiao],
+       background_resolution=60.0
+   )
 
 Próximos Passos
 ---------------
 
-- Veja :doc:`pipeline` para o fluxo completo de geração de malha
-- Veja os exemplos no diretório ``examples/``
+- Veja :doc:`pipeline` para explicação detalhada do fluxo de trabalho
+- Veja :doc:`regioes` para opções de configuração de regiões
+- Confira ``examples/configs/`` para mais exemplos de configuração

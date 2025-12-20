@@ -1,0 +1,27 @@
+{
+    "name": "saopaulo_region",
+    "description": "Simple circular high-resolution region over São Paulo",
+
+    "background_resolution": 60.0,
+    "grid_density": 0.5,
+    "output_dir": "output/saopaulo",
+
+    "regions": [
+        {
+            "name": "SaoPaulo_Metro",
+            "type": "circle",
+            "center": [-23.55, -46.63],
+            "radius": 200,
+            "resolution": 15.0,
+            "transition_start": 30.0
+        }
+    ],
+
+    "regional_cut": {
+        "type": "circle",
+        "inside_point": [-23.55, -46.63],
+        "radius": 300000
+    },
+
+    "partitions": [32, 64]
+}

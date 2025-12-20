@@ -66,6 +66,7 @@ geo = [
 viz = [
     "matplotlib>=3.4.0",
     "cartopy>=0.20.0",
+    "basemap>=1.3.0",
 ]
 dev = [
     "pytest>=7.0.0",
