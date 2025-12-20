@@ -159,6 +159,90 @@ Carregar e usar:
    grid = generate_mesh(config='minha_config.json')
    save_grid(grid, 'minha_malha.nc')
 
+Pipeline Completo (Config para MPAS)
+------------------------------------
+
+Exemplo mínimo: de arquivo JSON de configuração até malha MPAS particionada pronta para execução.
+
+**Passo 1: Criar arquivo de configuração** ``config.json``:
+
+.. code-block:: json
+
+   {
+       "background_resolution": 60.0,
+       "regions": [
+           {
+               "name": "AltaResolucao",
+               "type": "circle",
+               "center": [-23.55, -46.63],
+               "radius": 200,
+               "resolution": 15.0,
+               "transition_start": 30.0
+           }
+       ]
+   }
+
+**Passo 2: Executar pipeline completo**:
+
+.. code-block:: python
+
+   from mgrid import (
+       generate_mesh,
+       generate_pts_file,
+       create_regional_mesh_python,
+       partition_mesh
+   )
+
+   # Gerar função de largura de célula + malha JIGSAW
+   grid = generate_mesh(
+       config='config.json',
+       output_path='saida/malha',
+       generate_jigsaw=True
+   )
+
+   # Gerar especificação da região
+   pts = generate_pts_file(
+       output_path='saida/regiao.pts',
+       name='regiao',
+       region_type='circle',
+       inside_point=(-23.55, -46.63),
+       radius=250000  # metros
+   )
+
+   # Cortar malha regional da malha global
+   malha_regional, grafo = create_regional_mesh_python(
+       pts_file=pts,
+       global_grid_file='saida/malha.grid.nc'
+   )
+
+   # Particionar para MPI (32, 64, 128 processos)
+   for nprocs in [32, 64, 128]:
+       partition_mesh(graph_file=grafo, num_partitions=nprocs)
+
+**Passo 3: Executar MPAS/MONAN**:
+
+.. code-block:: bash
+
+   mpirun -np 64 ./atmosphere_model
+
+Pipeline via Linha de Comando
+-----------------------------
+
+Ainda mais simples - use o script de exemplo diretamente:
+
+.. code-block:: bash
+
+   # Teste rápido (sem geração de malha)
+   python examples/09_goias_shapefile_grid.py
+
+   # Pipeline completo com malha JIGSAW
+   python examples/09_goias_shapefile_grid.py --jigsaw
+
+   # Completo: malha global existente + partição para 32,64,128 processos
+   python examples/09_goias_shapefile_grid.py \
+       --global-grid x1.40962.grid.nc \
+       --nprocs 32 64 128
+
 Visualização
 ------------
 

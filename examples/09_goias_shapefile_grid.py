@@ -653,9 +653,9 @@ def main(run_jigsaw=False, global_grid_file=None, num_partitions=None):
     global_grid_file : str or Path, optional
         Path to existing global MPAS grid. If provided, skips JIGSAW and uses
         this grid for the regional cut.
-    num_partitions : int, optional
-        Number of MPI partitions. If provided, partitions the regional mesh
-        using METIS (gpmetis).
+    num_partitions : int or list of int, optional
+        Number of MPI partitions. Can be a single value or a list of values
+        to generate multiple partition files (e.g., [32, 64, 128]).
 
     Returns
     -------
@@ -789,18 +789,32 @@ def main(run_jigsaw=False, global_grid_file=None, num_partitions=None):
     # STEP 7: Partition for MPI (if num_partitions specified)
     # =========================================================================
     if num_partitions and 'graph_file' in results:
+        # Convert single value to list for uniform handling
+        if isinstance(num_partitions, int):
+            partition_list = [num_partitions]
+        else:
+            partition_list = num_partitions
+
         print("\n" + "=" * 70)
-        print(f"STEP 7: PARTITION MESH FOR {num_partitions} MPI PROCESSES")
+        print(f"STEP 7: PARTITION MESH FOR {partition_list} MPI PROCESSES")
         print("=" * 70)
+
         try:
             from mgrid.limited_area import partition_mesh
 
-            partition_file = partition_mesh(
-                graph_file=results['graph_file'],
-                num_partitions=num_partitions,
-            )
-            results['partition_file'] = str(partition_file)
-            print(f"\n  Partition file: {partition_file}")
+            results['partition_files'] = []
+            for nprocs in partition_list:
+                print(f"\n  Partitioning for {nprocs} processes...")
+                partition_file = partition_mesh(
+                    graph_file=results['graph_file'],
+                    num_partitions=nprocs,
+                )
+                results['partition_files'].append(str(partition_file))
+                print(f"    Created: {partition_file}")
+
+            # Keep backward compatibility
+            results['partition_file'] = results['partition_files'][0]
+
         except Exception as e:
             print(f"  Warning: Partitioning failed - {e}")
             import traceback
@@ -852,20 +866,31 @@ def print_summary(results, output_dir, run_jigsaw, num_partitions):
         print(f"  {Path(results['regional_grid']).name}")
         print(f"  {Path(results['graph_file']).name}")
 
-        if 'partition_file' in results:
-            print(f"  {Path(results['partition_file']).name}")
+        if 'partition_files' in results:
+            for pf in results['partition_files']:
+                print(f"  {Path(pf).name}")
 
     # Print usage instructions
-    if 'partition_file' in results:
+    if 'partition_files' in results:
         print("\n" + "=" * 70)
         print("READY FOR MPAS/MONAN EXECUTION")
         print("=" * 70)
-        print(f"\nTo run MPAS/MONAN with {num_partitions} MPI processes:")
+
+        # Get partition counts from file names
+        partition_counts = []
+        for pf in results['partition_files']:
+            # Extract number from filename like "name.graph.info.part.64"
+            parts = Path(pf).name.split('.')
+            if parts[-1].isdigit():
+                partition_counts.append(int(parts[-1]))
+
+        print(f"\nGenerated partitions for: {partition_counts} MPI processes")
+        print(f"\nTo run MPAS/MONAN:")
         print(f"  1. Copy regional grid to your run directory:")
         print(f"     cp {results['regional_grid']} ./")
-        print(f"     cp {results['partition_file']} ./")
-        print(f"\n  2. Run the model:")
-        print(f"     mpirun -np {num_partitions} ./atmosphere_model")
+        print(f"     cp {results['partition_files'][0]} ./  # or other partition file")
+        print(f"\n  2. Run the model (example with {partition_counts[0]} processes):")
+        print(f"     mpirun -np {partition_counts[0]} ./atmosphere_model")
 
     grid = results.get('grid')
     if grid:
@@ -1007,8 +1032,8 @@ Examples:
   # Complete: Use existing global grid, cut + partition for 64 MPI processes
   python examples/09_goias_shapefile_grid.py --global-grid x1.40962.grid.nc --nprocs 64
 
-  # Production: Full pipeline with partition
-  python examples/09_goias_shapefile_grid.py --jigsaw --nprocs 128
+  # Production: Full pipeline with multiple partitions
+  python examples/09_goias_shapefile_grid.py --jigsaw --nprocs 32 64 128
         """
     )
     parser.add_argument(
@@ -1025,8 +1050,9 @@ Examples:
     parser.add_argument(
         '--nprocs', '-n',
         type=int,
+        nargs='+',
         default=None,
-        help='Number of MPI processes for partitioning (requires cut step)'
+        help='Number of MPI processes for partitioning. Can specify multiple values (e.g., --nprocs 32 64 128)'
     )
 
     args = parser.parse_args()
