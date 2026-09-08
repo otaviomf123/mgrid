@@ -257,16 +257,6 @@ from mgrid import (
 }
 ```
 
-## Icosahedral Grid Resolutions
-
-| Level | Resolution | Cells | Use Case |
-|-------|------------|-------|----------|
-| 4 | ~120 km | ~10,000 | Testing |
-| 5 | ~60 km | ~40,000 | Coarse global |
-| 6 | ~30 km | ~160,000 | Standard global |
-| 7 | ~15 km | ~650,000 | High-res global |
-| 8 | ~7 km | ~2,500,000 | Very high-res |
-
 ## Contributing
 
 Contributions are welcome. Please submit issues and pull requests on GitHub.
