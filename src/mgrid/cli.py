@@ -28,8 +28,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Generate mesh from config (complete pipeline)
+  # Generate mesh from config: JIGSAW -> MPAS NetCDF (<name>.grid.nc)
   mgrid config.json
+
+  # Fail (non-zero exit) if the mesh does not pass the dv/dc quality gate
+  mgrid config.json --strict
 
   # Use existing static file (skip JIGSAW generation)
   mgrid config.json --static-file static.nc
@@ -83,6 +86,25 @@ Documentation: https://github.com/otaviomf123/mgrid
         action='store_true',
         help='Skip plot generation'
     )
+    run_parser.add_argument(
+        '--min-dvdc',
+        type=float,
+        default=None,
+        help=(
+            'Minimum dvEdge/dcEdge ratio for the mesh quality gate '
+            '(default: 0.12, or "min_dvdc_ratio" from the config)'
+        )
+    )
+    run_parser.add_argument(
+        '--strict',
+        action='store_true',
+        help='Exit with an error if the mesh fails the quality gate'
+    )
+    run_parser.add_argument(
+        '--skip-quality-check',
+        action='store_true',
+        help='Do not run the dvEdge/dcEdge quality gate'
+    )
 
     # Info command
     info_parser = subparsers.add_parser(
@@ -131,8 +153,8 @@ Documentation: https://github.com/otaviomf123/mgrid
 
 def _cmd_run(args):
     """Handle unified run command."""
-    from .api import generate_mesh
-    from .io import load_config, save_config
+    from .api import generate_mesh, save_grid
+    from .io import load_config, DEFAULT_MIN_DVDC_RATIO
     from .limited_area import (
         generate_pts_file,
         create_regional_mesh_python,
@@ -183,21 +205,40 @@ def _cmd_run(args):
             plot=not args.no_plot
         )
 
-        print("\n" + grid.summary())
         results['grid'] = grid
         results['mesh_file'] = grid.mesh_file
 
-        # The generated grid.nc file
-        generated_grid = output_path.parent / f"{output_path.name}.grid.nc"
-        if generated_grid.exists():
-            results['grid_file'] = str(generated_grid)
-            print(f"\nGrid file: {generated_grid}")
+        # -----------------------------------------------------------------
+        # STEP 1b: Convert JIGSAW mesh to MPAS NetCDF (the actual deliverable)
+        # -----------------------------------------------------------------
+        print("\n" + "-" * 70)
+        print("STEP 1b: Convert JIGSAW mesh to MPAS NetCDF")
+        print("-" * 70)
+
+        grid_file = output_dir / f"{mesh_name}.grid.nc"
+        save_grid(grid, grid_file)
+
+        if not grid_file.exists():
+            raise RuntimeError(
+                f"MPAS grid file was not generated: {grid_file}. "
+                "JIGSAW ran, but the conversion to MPAS format produced no "
+                "output. Check the mpas_tools installation."
+            )
+
+        results['grid_file'] = str(grid_file)
+        print("\n" + grid.summary())
+
+        results['global_quality'] = _quality_gate(
+            grid_file, args, config, DEFAULT_MIN_DVDC_RATIO
+        )
+
+        if not static_file:
             print("\n" + "=" * 70)
             print("NEXT STEP: Generate static file (external)")
             print("=" * 70)
             print("Configure namelist.init_atmosphere with:")
             print("  - config_static_interp = true")
-            print(f"  - Grid file: {generated_grid}")
+            print(f"  - Grid file: {grid_file}")
             print("\nSee: https://www2.mmm.ucar.edu/projects/mpas/site/documentation/")
             print("\nThen re-run with:")
             print(f"  mgrid {args.config} --static-file static.nc")
@@ -294,6 +335,10 @@ def _cmd_run(args):
         print(f"Regional grid: {regional_grid}")
         print(f"Graph file: {graph_file}")
 
+        results['regional_quality'] = _quality_gate(
+            Path(regional_grid), args, config, DEFAULT_MIN_DVDC_RATIO
+        )
+
         # =================================================================
         # STEP 3: Partition mesh (if partitions specified)
         # =================================================================
@@ -340,12 +385,71 @@ def _cmd_run(args):
 
     elif 'grid_file' in results:
         print("\nGenerated files:")
-        print(f"  Grid file: {results['grid_file']}")
+        print(f"  JIGSAW mesh: {results['mesh_file']}")
+        print(f"  MPAS grid:   {results['grid_file']}")
         print("\nNext step: Configure namelist.init_atmosphere (see MPAS docs)")
+
+    failed = [
+        k for k in ('global_quality', 'regional_quality')
+        if results.get(k) is not None and not results[k]['passed']
+    ]
+    if failed:
+        print("\nWARNING: mesh FAILED the dvEdge/dcEdge quality gate. "
+              "Do not use it in MPAS/MONAN without regenerating.")
 
     print("\n" + "=" * 70 + "\n")
 
     return results
+
+
+def _quality_gate(grid_file, args, config, default_threshold):
+    """Run the dvEdge/dcEdge gate on a grid file and report the result.
+
+    Returns the result dict from ``check_mesh_quality`` or None if the
+    check was skipped. Raises RuntimeError in --strict mode on failure.
+    """
+    from .io import check_mesh_quality
+
+    if getattr(args, 'skip_quality_check', False):
+        return None
+
+    threshold = args.min_dvdc
+    if threshold is None:
+        threshold = config.get('min_dvdc_ratio', default_threshold)
+
+    print("\n" + "-" * 70)
+    print(f"QUALITY GATE: dvEdge/dcEdge >= {threshold} ({Path(grid_file).name})")
+    print("-" * 70)
+
+    try:
+        result = check_mesh_quality(grid_file, min_ratio=threshold)
+    except ImportError as e:
+        print(f"  Skipped: {e}")
+        return None
+
+    print(f"  Edges checked:  {result['n_edges']:,}")
+    print(f"  Min dv/dc:      {result['min_ratio']:.4f}")
+    print(f"  Bad edges:      {result['n_bad_edges']}")
+    if result['worst_edge_latlon']:
+        lat, lon = result['worst_edge_latlon']
+        print(f"  Worst edge at:  lat={lat:.3f}, lon={lon:.3f}")
+
+    if result['passed']:
+        print("  Result:         PASSED")
+    else:
+        print("  Result:         FAILED")
+        print("  Meshes below this threshold crashed MPAS at the first "
+              "radiation step.")
+        print("  Regenerate with perturbed transition widths (+10/+20 km) "
+              "to re-sample the tessellation.")
+        if args.strict:
+            raise RuntimeError(
+                f"Mesh quality gate failed: min dv/dc = "
+                f"{result['min_ratio']:.4f} < {threshold} "
+                f"({result['n_bad_edges']} bad edges)"
+            )
+
+    return result
 
 
 def _cmd_info(args):

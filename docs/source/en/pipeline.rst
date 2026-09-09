@@ -162,18 +162,48 @@ Generate the mesh sizing field:
 Step 4-5: Generate JIGSAW Mesh and Convert to MPAS
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This happens automatically when ``generate_jigsaw=True``:
+``generate_mesh(generate_jigsaw=True)`` only runs JIGSAW and returns the
+triangular mesh (``.msh``). The conversion to the MPAS Voronoi NetCDF is a
+separate step, done by ``save_grid`` (or ``convert_to_mpas`` directly):
 
 .. code-block:: python
 
-   from mgrid.io import convert_to_mpas
+   from mgrid import save_grid
 
-   # If mesh was generated
-   if grid.mesh_file:
-       convert_to_mpas(
-           mesh_file=grid.mesh_file,
-           output_file='output/my_grid.nc'
-       )
+   # grid.mesh_file is the JIGSAW output (*-MESH.msh)
+   grid_file = save_grid(grid, 'output/my_mesh.grid.nc')
+
+The command line (``mgrid config.json``) runs both steps and writes
+``<output_dir>/<name>.grid.nc``. It then checks the mesh with the
+``dvEdge/dcEdge`` quality gate (see below) and fails with a clear error if
+the NetCDF file is not produced.
+
+Quality gate
+
+
+Meshes with edges whose ``dvEdge / dcEdge`` ratio is below ~0.10 crashed
+MPAS v8.4.1 at the first radiation step. mgrid checks every generated grid
+(global and regional) against a threshold of 0.12:
+
+.. code-block:: bash
+
+   mgrid config.json            # prints a WARNING if the gate fails
+   mgrid config.json --strict   # exits with an error instead
+   mgrid config.json --min-dvdc 0.13
+
+The threshold can also be set in the config with ``"min_dvdc_ratio"``.
+From Python:
+
+.. code-block:: python
+
+   from mgrid.io import check_mesh_quality
+
+   result = check_mesh_quality('output/my_mesh.grid.nc')
+   assert result['passed'], result
+
+If the gate fails, regenerate the mesh with slightly different transition
+widths (+10/+20 km): this re-samples the tessellation and usually removes
+the degenerate edges.
 
 Step 6: Generate Static File (External - MPAS init)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

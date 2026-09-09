@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from m_grid.api import Grid, generate_mesh
+from mgrid.api import Grid, generate_mesh
 
 
 class TestGrid:
@@ -86,7 +86,7 @@ class TestGenerateMesh:
 
     def test_custom_regions(self):
         """Test generation with custom regions."""
-        from m_grid import CircularRegion
+        from mgrid import CircularRegion
 
         region = CircularRegion(
             name='Custom',
@@ -112,7 +112,7 @@ class TestGenerateMesh:
 
     def test_grid_density_effect(self):
         """Higher density factor should create smaller dlat = more points."""
-        from m_grid import CircularRegion
+        from mgrid import CircularRegion
 
         region = CircularRegion(
             name='Test',

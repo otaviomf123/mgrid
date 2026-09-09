@@ -278,6 +278,81 @@ def convert_to_mpas(
     return output_path
 
 
+# Minimum dvEdge/dcEdge ratio for a mesh to be considered safe for MPAS.
+# Meshes with edges below ~0.10 crashed MPAS v8.4.1 at the first radiation
+# call (NaN in the dynamics). 0.12 is the validated threshold; see
+# CONFIGS_VALIDADAS_MPAS.md for the experiments behind this number.
+DEFAULT_MIN_DVDC_RATIO = 0.12
+
+
+def check_mesh_quality(
+    grid_file: Union[str, Path],
+    min_ratio: float = DEFAULT_MIN_DVDC_RATIO,
+) -> Dict[str, Any]:
+    """
+    Check an MPAS grid for degenerate edges (dvEdge / dcEdge gate).
+
+    The ratio between the length of a Voronoi edge (``dvEdge``) and the
+    distance between the two cell centers it separates (``dcEdge``) is a
+    direct measure of tessellation quality. Very small ratios mean nearly
+    collapsed edges, which make the MPAS dynamics blow up.
+
+    Parameters
+    ----------
+    grid_file : str or Path
+        Path to an MPAS NetCDF grid file (global or regional).
+    min_ratio : float, optional
+        Minimum acceptable ``dvEdge / dcEdge`` (default: 0.12).
+
+    Returns
+    -------
+    result : dict
+        Dictionary containing:
+        - 'passed': True if every edge satisfies the threshold
+        - 'min_ratio': smallest ratio found
+        - 'n_bad_edges': number of edges below the threshold
+        - 'n_edges': total number of edges
+        - 'threshold': threshold used
+        - 'worst_edge_latlon': (lat, lon) in degrees of the worst edge,
+          or None if the file has no edge coordinates
+    """
+    try:
+        import xarray as xr
+    except ImportError:
+        raise ImportError(
+            "xarray is required to check MPAS files. "
+            "Install with: pip install xarray"
+        )
+
+    with xr.open_dataset(grid_file) as ds:
+        if 'dvEdge' not in ds or 'dcEdge' not in ds:
+            raise ValueError(
+                f"{grid_file} has no dvEdge/dcEdge variables; "
+                "is it an MPAS grid file?"
+            )
+        dv = ds['dvEdge'].values
+        dc = ds['dcEdge'].values
+        ratio = dv / np.maximum(dc, 1e-12)
+
+        worst = int(np.argmin(ratio))
+        worst_latlon = None
+        if 'latEdge' in ds and 'lonEdge' in ds:
+            worst_latlon = (
+                float(np.degrees(ds['latEdge'].values[worst])),
+                float(np.degrees(ds['lonEdge'].values[worst])),
+            )
+
+    n_bad = int(np.sum(ratio < min_ratio))
+    return {
+        'passed': n_bad == 0,
+        'min_ratio': float(ratio.min()),
+        'n_bad_edges': n_bad,
+        'n_edges': int(ratio.size),
+        'threshold': float(min_ratio),
+        'worst_edge_latlon': worst_latlon,
+    }
+
+
 def read_mpas_grid(grid_file: Union[str, Path]) -> Dict[str, Any]:
     """
     Read basic information from an MPAS grid file.
