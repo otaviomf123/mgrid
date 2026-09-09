@@ -97,7 +97,10 @@ Exemplo Rápido
 
    mgrid config.json
 
-Isso gera o arquivo de grade (``saida/saopaulo.grid.nc``).
+Isso executa o JIGSAW, converte a malha para o formato MPAS e escreve
+``saida/saopaulo.grid.nc``. Os intermediários do JIGSAW (``.msh``, ``.jig``)
+ficam no mesmo diretório. A grade é verificada com o gate de qualidade
+``dvEdge/dcEdge``; use ``--strict`` para falhar em malha ruim.
 
 **Passo 3: Gerar arquivo static (externo - MPAS/MONAN)**:
 

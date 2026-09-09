@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from m_grid.geometry import (
+from mgrid.geometry import (
     haversine_distance,
     degrees_to_km,
     km_to_degrees,

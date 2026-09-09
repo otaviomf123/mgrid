@@ -144,7 +144,7 @@ def generate_mesh(
     >>> grid = generate_mesh(config='brazil_grid.json')
 
     >>> # Custom regions
-    >>> from m_grid import CircularRegion
+    >>> from mgrid import CircularRegion
     >>> region = CircularRegion(
     ...     name='Amazon',
     ...     resolution=5,

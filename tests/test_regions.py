@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from m_grid.regions import (
+from mgrid.regions import (
     CircularRegion,
     PolygonRegion,
     compute_cell_width,

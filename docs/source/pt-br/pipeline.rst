@@ -162,18 +162,48 @@ Gerar o campo de dimensionamento da malha:
 Etapa 4-5: Gerar Malha JIGSAW e Converter para MPAS
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Isso acontece automaticamente quando ``generate_jigsaw=True``:
+``generate_mesh(generate_jigsaw=True)`` apenas executa o JIGSAW e retorna a
+malha triangular (``.msh``). A conversão para o NetCDF Voronoi do MPAS é uma
+etapa separada, feita por ``save_grid`` (ou ``convert_to_mpas`` diretamente):
 
 .. code-block:: python
 
-   from mgrid.io import convert_to_mpas
+   from mgrid import save_grid
 
-   # Se a malha foi gerada
-   if grid.mesh_file:
-       convert_to_mpas(
-           mesh_file=grid.mesh_file,
-           output_file='saida/minha_malha.grid.nc'
-       )
+   # grid.mesh_file é a saída do JIGSAW (*-MESH.msh)
+   grid_file = save_grid(grid, 'saida/minha_malha.grid.nc')
+
+A linha de comando (``mgrid config.json``) executa as duas etapas e escreve
+``<output_dir>/<name>.grid.nc``. Em seguida verifica a malha com o gate de
+qualidade ``dvEdge/dcEdge`` (veja abaixo) e falha com erro claro se o
+arquivo NetCDF não for produzido.
+
+Gate de qualidade
+
+
+Malhas com arestas cuja razão ``dvEdge / dcEdge`` fica abaixo de ~0,10
+derrubaram o MPAS v8.4.1 no primeiro passo de radiação. O mgrid verifica
+toda malha gerada (global e regional) contra um limiar de 0,12:
+
+.. code-block:: bash
+
+   mgrid config.json            # imprime WARNING se o gate reprovar
+   mgrid config.json --strict   # sai com erro em vez de aviso
+   mgrid config.json --min-dvdc 0.13
+
+O limiar também pode ser definido no config com ``"min_dvdc_ratio"``.
+Em Python:
+
+.. code-block:: python
+
+   from mgrid.io import check_mesh_quality
+
+   resultado = check_mesh_quality('saida/minha_malha.grid.nc')
+   assert resultado['passed'], resultado
+
+Se o gate reprovar, regenere a malha com larguras de transição um pouco
+diferentes (+10/+20 km): isso re-sorteia a tesselação e normalmente elimina
+as arestas degeneradas.
 
 Etapa 6: Gerar Arquivo Static (Externo - MPAS init)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

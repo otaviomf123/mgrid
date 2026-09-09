@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from m_grid.io import (
+from mgrid.io import (
     load_config,
     save_config,
     validate_config,

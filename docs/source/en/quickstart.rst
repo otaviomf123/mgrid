@@ -97,7 +97,10 @@ Quick Example
 
    mgrid config.json
 
-This generates the grid file (``output/saopaulo.grid.nc``).
+This runs JIGSAW, converts the mesh to MPAS format and writes
+``output/saopaulo.grid.nc``. The JIGSAW intermediates (``.msh``, ``.jig``)
+stay in the same directory. The grid is checked with the ``dvEdge/dcEdge``
+quality gate; add ``--strict`` to fail on a bad mesh.
 
 **Step 3: Generate static file (external - MPAS/MONAN)**:
 
